@@ -1,71 +1,94 @@
+import json
 from logging import getLogger
+from pathlib import Path
 from typing import List
 
-from more_itertools import one
-from requests import Session
+from more_itertools import first
 from websocket import create_connection
 
-from hub import Hub, DoNothingProcessor
-from room import Room, RoomListingProcessor, RoomHub
+from hub import Hub, SpatialSpaceConnector
+from mixin import PrintableMixin, LoggableMixin
+from room import Room, RoomHub, ConnectedRoom
 
 
-class SpaceHub(Hub):
+class SpaceFactory:
     @classmethod
-    def connect(cls, json_hub, space_password):
-        return cls(json_hub['hubEndpoint'], json_hub['token'], space_password)
-
-    def __init__(self, endpoint, token, space_password):
-        self.room_listing_processor = RoomListingProcessor(space_password)
-        self.space_password = space_password
-        self.token = token
-        self.endpoint = endpoint
-        ws = create_connection(f"{self.endpoint}?apiVer=2&token={self.token}")
-        super().__init__(ws, {'space:updated': DoNothingProcessor(),
-                              'rooms:listed': self.room_listing_processor,
-                              'users:listed': DoNothingProcessor(),
-                              'groups:listed': DoNothingProcessor(),
-                              'broadcast:updated': DoNothingProcessor(), })
-
-        self.connection.send('rooms:listed')
-        self.process_messages()
-
-    def join_room(self, name) -> RoomHub:
-        return one(filter(lambda room: name == room.name, self.room_listing_processor.rooms)).join(self.connection)
-
-    @property
-    def rooms(self) -> List[Room]:
-        return self.room_listing_processor.rooms
+    def connect(cls, space_name, space_password):
+        space_connector = SpatialSpaceConnector(space_name, space_password)
+        return ConnectedSpace(space_connector)
 
 
-class Space:
-    endpoint = 'https://spatial.chat/api/prod/v1/spaces'
+class Space(PrintableMixin):
 
-    @classmethod
-    def login(cls, space_name, space_password):
-        getLogger(cls.__name__).info(f'logging into space [{space_name}]')
-        with Session() as s:
-            response = s.get(Space.endpoint, params={'name': space_name, 'password': space_password})
-            assert 200 == response.status_code
-            return cls(space_name, response.json(), space_password)
-
-    def __init__(self, space_name, json, space_password):
-        self.name = space_name
+    def __init__(self, id, title, name, **kwargs):
+        self.name = name
         self.debug = getLogger(self.__class__.__name__).debug
         self.info = getLogger(self.__class__.__name__).info
-        self.space_password = space_password
-        self.space_title = json['title']
-        self.space_id = json['id']
-        self.debug(json.keys())
-
-    def join(self, username) -> SpaceHub:
-        join_url = '/'.join((Space.endpoint, self.space_id, 'join'))
-        self.info(f'joining [{self.space_title}] as [{username}]')
-        with Session() as s:
-            response = s.post(join_url, json={'userId': '123', 'name': username, 'password': self.space_password})
-            assert 200 == response.status_code, response.status_code
-            json_response = response.json()
-            self.debug(json_response)
-            return SpaceHub.connect(json_response, self.space_password)
+        self.space_title = title
+        self.space_id = id
+        self.debug(kwargs)
 
     def to_json(self):
-        return {'name': self.name, 'id': self.space_id}
+        return {'title': self.space_title, 'id': self.space_id}
+
+
+class SpaceHub(Hub, LoggableMixin):
+
+    def __init__(self, space_connector: SpatialSpaceConnector, hubEndpoint, token, user, chatEndpoint):
+        self.space_connector = space_connector
+        self.hubEndpoint = hubEndpoint
+        self.token = token
+        super().__init__(create_connection(f"{self.hubEndpoint}?apiVer=2&token={self.token}"))
+        self.room_hub = RoomHub(space_connector, self.connection)
+
+    def list_rooms(self):
+        return self.room_hub.list_rooms()
+
+
+class JoinedSpace(PrintableMixin, LoggableMixin):
+    def __init__(self, space: Space, space_hub: SpaceHub):
+        super().__init__()
+        self.space = space
+        self.space_hub = space_hub
+
+    @property
+    def rooms(self) -> List[ConnectedRoom]:
+        return self.space_hub.list_rooms()
+
+    def hibernate(self, hibernate_path: Path):
+        with open(hibernate_path.joinpath(f'{self.space.name}.space'), 'w') as space_file:
+            space_json = {
+                'space': self.space.to_json(),
+            }
+            space_json['space']['rooms'] = list(map(lambda room: room.to_json(), self.rooms))
+            self.info(f'hibernating space to [{space_file.name}]')
+            self.debug(f'space content: {space_json}')
+            json.dump(space_json, space_file)
+
+        for room in self.rooms:
+            room.hibernate(hibernate_path)
+
+    def resume(self, hibernate_path: Path):
+        with open(hibernate_path.joinpath(f'{self.space.name}.space'), 'r') as space_file:
+            space_json = json.load(space_file)['space']
+        self.space_hub.space_connector.update_space_from_json(self.space.space_id, space_json)
+
+        resume_rooms = list(map(lambda room_json: Room.from_json(room_json), space_json['rooms']))
+        for resume_room in resume_rooms:
+            connected_room: ConnectedRoom = first(filter(lambda room: room.name == resume_room.name, self.rooms), ())
+            if not connected_room:
+                connected_room = ConnectedRoom(
+                    Room.from_json(self.space_hub.space_connector.create_room(self.space.space_id, resume_room)),
+                    self.space_hub.room_hub)
+
+            connected_room.resume(hibernate_path)
+
+
+class ConnectedSpace(PrintableMixin):
+    def __init__(self, space_connector: SpatialSpaceConnector):
+        self.space = Space(**space_connector.connect())
+        self.space_connector = space_connector
+
+    def join(self, username) -> JoinedSpace:
+        hub_json = self.space_connector.join(self.space.space_id, username)
+        return JoinedSpace(self.space, SpaceHub(self.space_connector, **hub_json))
