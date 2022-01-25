@@ -8,7 +8,7 @@ import websocket
 from more_itertools import one
 from requests import Session
 
-from hub import Processor, Hub, ExpectedMessageNotRetrievedError, SpatialSpaceConnector
+from hub import Processor, Hub, SpatialSpaceConnector
 from mixin import PrintableMixin, LoggableMixin
 
 
@@ -90,6 +90,9 @@ class RoomListingProcessor(Processor):
     def processed(self):
         return self.rooms
 
+    def reset(self):
+        return self.rooms.clear()
+
 
 class Room:
 
@@ -155,7 +158,6 @@ class RoomHub(Hub, LoggableMixin):
         return self.satisfy(RoomElementsProcessor())
 
     def satisfy(self, processor: Processor):
-        pings = 0
         while not processor.satisfied():
             json_message = json.loads(self.connection.recv())
             self.debug(f'processing message {json_message}')
@@ -164,8 +166,6 @@ class RoomHub(Hub, LoggableMixin):
                 continue
             if 'ping' == json_message[0]:
                 self.connection.pong()
-                if ++pings > 3:
-                    raise ExpectedMessageNotRetrievedError()
 
             message_type, *message_content = json_message
             if processor.accepts(message_type):
@@ -210,34 +210,34 @@ class ConnectedRoom(PrintableMixin, LoggableMixin):
         return self.room.to_json()
 
     def hibernate(self, hibernate_path: Path):
-        self.info(f'hibernating [{self}]')
+        self.debug(f'hibernating [{self.room}]')
         self._hibernate_room(hibernate_path)
         self._hibernate_background_image(hibernate_path)
 
     def _hibernate_background_image(self, hibernate_path):
-        room_bg_filename = f'{str(urlsafe_b64encode(self.room.name.encode("UTF-8")), "utf-8")}.room.jpg'
+        room_bg_filename = f'{str(urlsafe_b64encode(self.name.encode("UTF-8")), "utf-8")}.room.jpg'
         with Session() as s:
             response = s.get(self.room.bgImageUrl)
             with open(hibernate_path.joinpath(room_bg_filename), 'wb') as room_bg_file:
                 room_bg_file.write(response.content)
 
     def _hibernate_room(self, hibernate_path):
-        room_filename = f'{str(urlsafe_b64encode(self.room.name.encode("UTF-8")), "utf-8")}.room'
+        room_filename = f'{str(urlsafe_b64encode(self.name.encode("UTF-8")), "utf-8")}.room'
         room_json = {'room': self.to_json(),
                      }
         room_json['room']['elements'] = self.elements
         with open(hibernate_path.joinpath(room_filename), 'w') as room_file:
-            self.info(f'hibernating room to [{room_file.name}]')
+            self.info(f'hibernating [{self.name}] to [{room_file.name}]')
             self.debug(f'room content: {room_json}')
             json.dump(room_json, room_file)
 
     def resume(self, hibernate_path):
-        self.info(f'resuming room [{self.room.name}]')
         room_bg_filename = hibernate_path.joinpath(
             f'{str(urlsafe_b64encode(self.name.encode("UTF-8")), "utf-8")}.room.jpg')
         self.debug(f'restoring background image [{room_bg_filename.name}]')
         self.room_hub.space_connector.background_image(self.room.id, room_bg_filename)
         room_filename = f'{str(urlsafe_b64encode(self.name.encode("UTF-8")), "utf-8")}.room'
         with open(hibernate_path.joinpath(room_filename), 'r') as room_file:
+            self.info(f'resuming room [{self.name}] from [{room_file.name}]')
             room_json = json.load(room_file)['room']
             self.room_hub.update_from_json(self.room, room_json)

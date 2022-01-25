@@ -3,7 +3,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import List
 
-from more_itertools import first
+from more_itertools import first, one
 from websocket import create_connection
 
 from hub import Hub, SpatialSpaceConnector
@@ -20,7 +20,8 @@ class SpaceFactory:
 
 class Space(PrintableMixin):
 
-    def __init__(self, id, title, name, **kwargs):
+    def __init__(self, id, title, name, maxRooms, **kwargs):
+        self.max_rooms = maxRooms
         self.name = name
         self.debug = getLogger(self.__class__.__name__).debug
         self.info = getLogger(self.__class__.__name__).info
@@ -69,19 +70,47 @@ class JoinedSpace(PrintableMixin, LoggableMixin):
             room.hibernate(hibernate_path)
 
     def resume(self, hibernate_path: Path):
-        with open(hibernate_path.joinpath(f'{self.space.name}.space'), 'r') as space_file:
+        with open(one(hibernate_path.glob('*.space')), 'r') as space_file:
+            self.info(f'resuming space [{self.space.name}] from [{space_file.name}]')
             space_json = json.load(space_file)['space']
         self.space_hub.space_connector.update_space_from_json(self.space.space_id, space_json)
-
+        self.eat_excessive_room_messages()
         resume_rooms = list(map(lambda room_json: Room.from_json(room_json), space_json['rooms']))
+
+        self._restore_rooms(resume_rooms)
+
         for resume_room in resume_rooms:
             connected_room: ConnectedRoom = first(filter(lambda room: room.name == resume_room.name, self.rooms), ())
             if not connected_room:
-                connected_room = ConnectedRoom(
-                    Room.from_json(self.space_hub.space_connector.create_room(self.space.space_id, resume_room)),
-                    self.space_hub.room_hub)
+                self.log.error(f'skipping not existing room [{resume_room.name}]')
+            else:
+                connected_room.resume(hibernate_path)
 
-            connected_room.resume(hibernate_path)
+    def eat_excessive_room_messages(self):
+        self.set_refresh_rooms()
+        self.space_hub.room_hub.list_rooms()
+        self.set_refresh_rooms()
+
+    def _restore_rooms(self, resume_rooms: List[Room]):
+        new_rooms = list(
+            filter(lambda r: r.name not in self._existing_rooms_names(), resume_rooms))
+        required_rooms_new = len(new_rooms)
+        self.debug(f'about to create [{required_rooms_new}] rooms')
+        current_rooms = len(self.rooms)
+        remaining_rooms_space = self.space.max_rooms - current_rooms
+        if required_rooms_new > remaining_rooms_space:
+            self.log.error(f'only [{remaining_rooms_space}] rooms available but need to create [{required_rooms_new}]')
+            new_rooms = new_rooms[:remaining_rooms_space]
+            self.info(f'only creating rooms {list(map(lambda r:r.name, new_rooms))}')
+        for new_room in new_rooms:
+            self.space_hub.space_connector.create_room(self.space.space_id, new_room)
+            self.set_refresh_rooms()
+
+    def _existing_rooms_names(self):
+        return map(lambda existing_room: existing_room.name, self.rooms)
+
+    def set_refresh_rooms(self):
+        self.space_hub.room_hub.processor.reset()
 
 
 class ConnectedSpace(PrintableMixin):

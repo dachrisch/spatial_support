@@ -37,15 +37,6 @@ class Hub:
         self.debug = getLogger(self.__class__.__name__).debug
 
 
-class UnknownMessageError(Exception):
-    def __init__(self, message):
-        self.message = message
-
-
-class ExpectedMessageNotRetrievedError(Exception):
-    pass
-
-
 class SpatialSpaceConnector(PrintableMixin, LoggableMixin):
     space_endpoint = 'https://spatial.chat/api/prod/v1/spaces'
     room_endpoint = 'https://spatial.chat/api/prod/v1/rooms'
@@ -94,13 +85,12 @@ class SpatialSpaceConnector(PrintableMixin, LoggableMixin):
         with Session() as s:
             response = s.post(create_room_url, params={'password': self._space_password},
                               json={'name': room.name, 'type': room.type})
-            assert 200 == response.status_code, response.status_code
-            return response.json()
+            return self._validated_json(response)
 
     def _validated_json(self, response):
-        assert 200 == response.status_code, response.text
+        assert 200 == response.status_code, f'{response.status_code}, {response.text}'
         json_response = response.json()
-        self.debug(json_response)
+        self.debug(f'{response.url}: {json_response}')
         return json_response
 
     def background_image(self, room_id, filepath: Path):
