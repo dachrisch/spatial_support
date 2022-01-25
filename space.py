@@ -101,7 +101,7 @@ class JoinedSpace(PrintableMixin, LoggableMixin):
         if required_rooms_new > remaining_rooms_space:
             self.log.error(f'only [{remaining_rooms_space}] rooms available but need to create [{required_rooms_new}]')
             new_rooms = new_rooms[:remaining_rooms_space]
-            self.info(f'only creating rooms {list(map(lambda r:r.name, new_rooms))}')
+            self.info(f'only creating rooms {list(map(lambda r: r.name, new_rooms))}')
         for new_room in new_rooms:
             self.space_hub.space_connector.create_room(self.space.space_id, new_room)
             self.set_refresh_rooms()

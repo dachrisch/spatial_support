@@ -1,6 +1,6 @@
 import os
 from argparse import ArgumentParser
-from logging import basicConfig, INFO, DEBUG
+from logging import basicConfig, INFO
 from logging import getLogger
 from pathlib import Path
 
@@ -36,7 +36,7 @@ def main():
     group.add_argument("-s", "--store", help="hibernate a given space", action="store_true")
     group.add_argument("-r", "--restore", help="resume a given space", action="store_true")
 
-    args=parser.parse_args()
+    args = parser.parse_args()
     sp = SpaceProcessor(args.space, args.password)
 
     if args.store:
