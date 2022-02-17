@@ -9,7 +9,7 @@ from more_itertools import one
 from requests import Session
 
 from hub import Processor, Hub, SpatialSpaceConnector
-from mixin import PrintableMixin, LoggableMixin
+from support.mixin import PrintableMixin, LoggableMixin
 
 
 class RoomElementAddedProcessor(Processor, LoggableMixin):

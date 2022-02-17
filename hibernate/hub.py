@@ -6,7 +6,7 @@ from typing import Any, Dict
 from requests import Session
 from websocket import WebSocket
 
-from mixin import PrintableMixin, LoggableMixin
+from support.mixin import PrintableMixin, LoggableMixin
 
 
 class Processor:

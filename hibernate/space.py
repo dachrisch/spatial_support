@@ -7,7 +7,7 @@ from more_itertools import first, one
 from websocket import create_connection
 
 from hub import Hub, SpatialSpaceConnector
-from mixin import PrintableMixin, LoggableMixin
+from support.mixin import PrintableMixin, LoggableMixin
 from room import Room, RoomHub, ConnectedRoom
 
 
