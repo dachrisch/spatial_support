@@ -14,6 +14,6 @@ class PrintableMixin:
 
 class LoggableMixin:
     def __init__(self, *args, **kwargs):
-        self.log = getLogger(self.__class__.__name__)
-        self.info = self.log.info
-        self.debug = self.log.debug
+        self._log = getLogger(self.__class__.__name__)
+        self.info = self._log.info
+        self.debug = self._log.debug

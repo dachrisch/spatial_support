@@ -6,9 +6,9 @@ from typing import List
 from more_itertools import first, one
 from websocket import create_connection
 
-from hub import Hub, SpatialSpaceConnector
+from hibernate.hub import Hub, SpatialSpaceConnector
 from support.mixin import PrintableMixin, LoggableMixin
-from room import Room, RoomHub, ConnectedRoom
+from hibernate.room import Room, RoomHub, ConnectedRoom
 
 
 class SpaceFactory:
@@ -82,7 +82,7 @@ class JoinedSpace(PrintableMixin, LoggableMixin):
         for resume_room in resume_rooms:
             connected_room: ConnectedRoom = first(filter(lambda room: room.name == resume_room.name, self.rooms), ())
             if not connected_room:
-                self.log.error(f'skipping not existing room [{resume_room.name}]')
+                self._log.error(f'skipping not existing room [{resume_room.name}]')
             else:
                 connected_room.resume(hibernate_path)
 
@@ -99,7 +99,7 @@ class JoinedSpace(PrintableMixin, LoggableMixin):
         current_rooms = len(self.rooms)
         remaining_rooms_space = self.space.max_rooms - current_rooms
         if required_rooms_new > remaining_rooms_space:
-            self.log.error(f'only [{remaining_rooms_space}] rooms available but need to create [{required_rooms_new}]')
+            self._log.error(f'only [{remaining_rooms_space}] rooms available but need to create [{required_rooms_new}]')
             new_rooms = new_rooms[:remaining_rooms_space]
             self.info(f'only creating rooms {list(map(lambda r: r.name, new_rooms))}')
         for new_room in new_rooms:
