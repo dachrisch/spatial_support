@@ -1,5 +1,6 @@
 import json
 from base64 import urlsafe_b64encode
+from json import JSONDecodeError
 from logging import getLogger
 from pathlib import Path
 from typing import List, Any, Dict
@@ -8,7 +9,7 @@ import websocket
 from more_itertools import one
 from requests import Session
 
-from hub import Processor, Hub, SpatialSpaceConnector
+from hibernate.hub import Processor, Hub, SpatialSpaceConnector
 from support.mixin import PrintableMixin, LoggableMixin
 
 
@@ -159,7 +160,15 @@ class RoomHub(Hub, LoggableMixin):
 
     def satisfy(self, processor: Processor):
         while not processor.satisfied():
-            json_message = json.loads(self.connection.recv())
+            message = self.connection.recv()
+            if not message:
+                continue
+            try:
+                json_message = json.loads(message)
+            except JSONDecodeError as e:
+                self._log.exception(f'failed to decode [${message}]', e)
+                raise
+
             self.debug(f'processing message {json_message}')
             if not json_message[0]:
                 self.debug(f'ignoring unknown message {json_message}')
