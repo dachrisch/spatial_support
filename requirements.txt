@@ -1,3 +1,5 @@
 requests
 websocket-client
 more-itertools
+py-cui
+attrs
