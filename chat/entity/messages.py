@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from typing import Type, Dict, Any
+
+import pytz as pytz
+from attr import define, field
+from pytz import tzinfo
+
+
+@define
+class LeaveMessage:
+    leave = {}
+
+
+def to_relative_duration(delta: timedelta):
+    if delta.total_seconds() >= 60 * 60 * 24 * 356:
+        return '>1y'
+    elif delta.total_seconds() >= 60 * 60 * 24:
+        return f'-{delta.total_seconds() / (60 * 60 * 24):.0f}d'
+    elif delta.total_seconds() >= 60 * 60:
+        return f'-{delta.seconds / (60 * 60):.0f}h'
+    elif delta.total_seconds() >= 60:
+        return f'-{delta.seconds / 60:.0f}m'
+    else:
+        return 'now'
+
+
+def to_datetime(datetime_str: str, local_tz:tzinfo) -> datetime:
+    utc_tz = pytz.timezone('UTC')
+    utc_time = datetime.fromisoformat(datetime_str[:-1])
+    return local_tz.normalize(utc_tz.localize(utc_time))
+
+
+@define(hash=True)
+class ChatMessage:
+    author_name = field()
+    created: datetime = field()
+    message = field()
+    timezone = field()
+
+    @classmethod
+    def from_json(cls: Type[ChatMessage], chat_json: Dict[Any, Any],
+                  local_tz=pytz.timezone('Europe/Berlin')) -> ChatMessage:
+        return ChatMessage(chat_json['created.account.account.name'],
+                           to_datetime(chat_json['created.date'], local_tz),
+                           chat_json['state.active.content'],
+                           local_tz)
+
+    @property
+    def age(self):
+        now = datetime.now(self.timezone)
+        return to_relative_duration(now - self.created)

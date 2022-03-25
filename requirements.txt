@@ -3,3 +3,5 @@ websocket-client
 more-itertools
 py-cui
 attrs
+python-benedict
+pytz

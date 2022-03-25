@@ -17,3 +17,6 @@ class LoggableMixin:
         self._log = getLogger(self.__class__.__name__)
         self.info = self._log.info
         self.debug = self._log.debug
+
+    def __attrs_pre_init__(self):
+        LoggableMixin.__init__(self)
