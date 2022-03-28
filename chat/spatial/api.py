@@ -47,11 +47,11 @@ class SpatialApiConnector(LoggableMixin):
     def _validated_put(self, uri: str, json_payload: Optional[Dict[Any, Any]] = None) -> Dict[Any, Any]:
         if json_payload:
             # XXX: that bug cost me hours of lifetime - the api hangs if there are whitespaces in the json string. what the f*ck
-            put_data = json.dumps(json_payload).replace(' ', '')
+            put_data = json.dumps(json_payload).replace(', "', ',"').replace(': "', ':"')
         else:
             put_data = ''
         self.debug(f'-X PUT {uri} -d\'{put_data}\'')
-        json_response = self._session.put(uri, data=put_data, headers=self.headers, timeout=1).json()
+        json_response = self._session.put(uri, data=put_data, headers=self.headers, timeout=3).json()
         self.debug(json_response)
         assert 'success' in json_response, json_response
         return json_response['success']

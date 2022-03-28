@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from threading import Lock
 from time import sleep
-from typing import Callable, final, Set, Any, List, Dict
+from typing import Callable, final, Set, Any, List, Dict, Tuple
 
 from attr import define, field
 from benedict.dicts import benedict
@@ -11,6 +11,12 @@ from websocket import WebSocketApp
 
 from chat.entity.messages import ChatMessage
 from support.mixin import LoggableMixin
+
+
+class ListenerBuilderAware(ABC):
+    @abstractmethod
+    def on(self, message_type: str) -> ListenerBuilder:
+        raise NotImplementedError
 
 
 @define
@@ -24,12 +30,6 @@ class OnMessageListener(LoggableMixin):
     def process(self, socket: WebSocketApp, message: benedict):
         self.debug(f'processing {self.message_type}: {message}')
         self.callback(socket, message)
-
-
-class ListenerBuilderAware(ABC):
-    @abstractmethod
-    def on(self, message_type: str) -> ListenerBuilder:
-        raise NotImplementedError
 
 
 @define
@@ -81,8 +81,8 @@ class ChatListener(LoggableMixin):
         LoggableMixin.__init__(self)
         self.chats: Dict[str, Set[ChatMessage]] = dict()
         self.lock = Lock()
-        self.new_message_chat_listener = NewMessageChatListener(socket, self.chats, self.lock)
-        self.initial_state_chat_listener = InitialStateChatListener(socket, self.chats, self.lock)
+        self.new_message_chat_listener = NewMessageChatListener(socket, self.chats)
+        self.initial_state_chat_listener = InitialStateChatListener(socket, self.chats)
 
     def register_on_new_message(self, room_id: str, callback: Callable[[ChatMessage], Any]):
         self.new_message_chat_listener.listener[room_id] = callback
@@ -94,36 +94,51 @@ class ChatListener(LoggableMixin):
             return sorted(self.chats[room_id], key=lambda c: c.created)
 
 
-class NewMessageChatListener(BlockingListener, LoggableMixin):
-    def __init__(self, socket: ListenerBuilderAware, chats: Dict[str, Set[ChatMessage]], lock: Lock):
+class NewMessageChatListener(LoggableMixin):
+    def __init__(self, socket: ListenerBuilderAware, chats: Dict[str, Set[ChatMessage]]):
         LoggableMixin.__init__(self)
         self.chats = chats
         self.listener: Dict[str, Callable[[ChatMessage], Any]] = dict()
-        BlockingListener.__init__(self, socket, 'success.room.response.spatial.update.chatMessage', lock)
+        socket.on('success.room.response.spatial.update.chatMessage').call(self.on_spatial_message)
+        socket.on('success.room.response.stage.update.chatMessage').call(self.on_stage_message)
 
-    def _on_message(self, socket: ListenerBuilderAware, message: benedict):
+    def on_spatial_message(self, socket: ListenerBuilderAware, message: benedict):
+        return self.update_chats(message, 'success.room.response.spatial.update.chatMessage')
+
+    def on_stage_message(self, socket: ListenerBuilderAware, message: benedict):
+        return self.update_chats(message, 'success.room.response.stage.update.chatMessage')
+
+    def update_chats(self, message: benedict, chats_key: str):
         room_id = message['success.room.id']
-        chat_message = ChatMessage.from_json(message['success.room.response.spatial.update.chatMessage'])
+        chat_message = ChatMessage.from_json(message[chats_key])
         self.chats[room_id].add(chat_message)
         self.listener[room_id](chat_message)
 
 
-class InitialStateChatListener(BlockingListener, LoggableMixin):
-    def __init__(self, socket: ListenerBuilderAware, chats: Dict[str, Set[ChatMessage]], lock: Lock()):
+class InitialStateChatListener(LoggableMixin):
+    def __init__(self, socket: ListenerBuilderAware, chats: Dict[str, Set[ChatMessage]]):
         LoggableMixin.__init__(self)
         self.chats = chats
-        BlockingListener.__init__(self, socket, 'success.room.response.spatial.state.chat', lock)
+        socket.on('success.room.response.spatial.state.chat', ).call(self.on_spatial_message)
+        socket.on('success.room.response.stage.state.chat', ).call(self.on_stage_message)
 
-    def _on_message(self, socket: ListenerBuilderAware, message: benedict):
+    def on_spatial_message(self, socket: ListenerBuilderAware, message: benedict):
+        room_id, chats = self.extract_chats(message, 'success.room.response.spatial.state.chat')
+        self.chats[room_id] = chats
+
+    def on_stage_message(self, socket: ListenerBuilderAware, message: benedict):
+        room_id, chats = self.extract_chats(message, 'success.room.response.stage.state.chat')
+        self.chats[room_id] = chats
+
+    def extract_chats(self, message: benedict, chats_key: str) -> Tuple[Any, Set[Any]]:
         room_id = message['success.room.id']
-        room_chats = set()
-        self.chats[room_id] = room_chats
         self.debug(f'receiving chats for {room_id}')
-        for chat in message['success.room.response.spatial.state.chat']:
-            c = benedict(chat)
-            if 'state.active.content' in c:
-                chat_message = ChatMessage.from_json(c)
+        room_chats = set()
+        for chat in map(lambda c: benedict(c), message[chats_key]):
+            if 'state.active.content' in chat:
+                chat_message = ChatMessage.from_json(chat)
                 self.debug(chat_message)
                 room_chats.add(chat_message)
             else:
-                self.debug(f'omitting inactive message [{c}]')
+                self.debug(f'omitting inactive message [{chat}]')
+        return room_id, room_chats

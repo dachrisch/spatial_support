@@ -60,5 +60,3 @@ class SpatialWebSocketApp(LoggableMixin, WebSocketApp, ListenerBuilderAware):
 
     def send_message(self, message: object):
         self.send(json.dumps(unstructure(message)))
-
-
