@@ -44,10 +44,11 @@ class ListenerBuilder(LoggableMixin):
 
 
 class BlockingListener(ABC):
-    def __init__(self, socket: ListenerBuilderAware, trigger_message: str):
+    def __init__(self, socket: ListenerBuilderAware, trigger_message: str, lock=Lock()):
+        self.lock = lock
+        if not self.lock.locked():
+            self.lock.acquire()
         socket.on(trigger_message).call(self.on_message)
-        self.lock = Lock()
-        self.lock.acquire()
 
     @final
     def on_message(self, socket: WebSocketApp, message: benedict):
@@ -75,18 +76,48 @@ class ConnectedListener(BlockingListener):
             return self._connection_id
 
 
-class InitialStateChatListener(BlockingListener, LoggableMixin):
+class ChatListener(LoggableMixin):
     def __init__(self, socket: ListenerBuilderAware):
         LoggableMixin.__init__(self)
-        BlockingListener.__init__(self, socket, 'success.room.response.spatial.state.chat')
-        socket.on('success.room.response.spatial.update.chatMessage').call(self._on_new_message)
-        self._chats: Dict[str, Set[ChatMessage]] = dict()
+        self.chats: Dict[str, Set[ChatMessage]] = dict()
+        self.lock = Lock()
+        self.new_message_chat_listener = NewMessageChatListener(socket, self.chats, self.lock)
+        self.initial_state_chat_listener = InitialStateChatListener(socket, self.chats, self.lock)
+
+    def register_on_new_message(self, room_id: str, callback: Callable[[ChatMessage], Any]):
+        self.new_message_chat_listener.listener[room_id] = callback
+
+    def room_chats(self, room_id: str):
+        while room_id not in self.chats:
+            sleep(0.1)
+        with self.lock:
+            return sorted(self.chats[room_id], key=lambda c: c.created)
+
+
+class NewMessageChatListener(BlockingListener, LoggableMixin):
+    def __init__(self, socket: ListenerBuilderAware, chats: Dict[str, Set[ChatMessage]], lock: Lock):
+        LoggableMixin.__init__(self)
+        self.chats = chats
         self.listener: Dict[str, Callable[[ChatMessage], Any]] = dict()
+        BlockingListener.__init__(self, socket, 'success.room.response.spatial.update.chatMessage', lock)
+
+    def _on_message(self, socket: ListenerBuilderAware, message: benedict):
+        room_id = message['success.room.id']
+        chat_message = ChatMessage.from_json(message['success.room.response.spatial.update.chatMessage'])
+        self.chats[room_id].add(chat_message)
+        self.listener[room_id](chat_message)
+
+
+class InitialStateChatListener(BlockingListener, LoggableMixin):
+    def __init__(self, socket: ListenerBuilderAware, chats: Dict[str, Set[ChatMessage]], lock: Lock()):
+        LoggableMixin.__init__(self)
+        self.chats = chats
+        BlockingListener.__init__(self, socket, 'success.room.response.spatial.state.chat', lock)
 
     def _on_message(self, socket: ListenerBuilderAware, message: benedict):
         room_id = message['success.room.id']
         room_chats = set()
-        self._chats[room_id] = room_chats
+        self.chats[room_id] = room_chats
         self.debug(f'receiving chats for {room_id}')
         for chat in message['success.room.response.spatial.state.chat']:
             c = benedict(chat)
@@ -96,18 +127,3 @@ class InitialStateChatListener(BlockingListener, LoggableMixin):
                 room_chats.add(chat_message)
             else:
                 self.debug(f'omitting inactive message [{c}]')
-
-    def _on_new_message(self, socket: ListenerBuilderAware, message: benedict):
-        room_id = message['success.room.id']
-        chat_message = ChatMessage.from_json(message['success.room.response.spatial.update.chatMessage'])
-        self._chats[room_id].add(chat_message)
-        self.listener[room_id](chat_message)
-
-    def room_chats(self, room_id: str):
-        while room_id not in self._chats:
-            sleep(0.1)
-        with self.lock:
-            return sorted(self._chats[room_id], key=lambda c: c.created)
-
-    def register_on_new_message(self, room_id: str, callback: Callable[[ChatMessage], Any]):
-        self.listener[room_id] = callback
