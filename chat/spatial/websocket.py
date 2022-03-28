@@ -10,6 +10,7 @@ from websocket import WebSocketApp
 
 from chat.entity.secret import AccountSecret
 from chat.spatial.listener import OnMessageListener, ListenerBuilder, ConnectedListener, ListenerBuilderAware
+from chat.spatial.param import SpaceConnection
 from support.mixin import LoggableMixin
 
 
@@ -21,10 +22,10 @@ class SpatialWebSocketApp(LoggableMixin, WebSocketApp, ListenerBuilderAware):
         WebSocketApp.__init__(self, f'{self.socket_endpoint}?spaceId={space_id}', on_message=self._on_message,
                               on_open=self._on_open, cookie=f'authorization={secret.auth_code}')
         ListenerBuilderAware.__init__(self)
-        self.space_id = space_id
         self.socket_thread = Thread(target=self._run_socket)
         self.on_message_listener: List[OnMessageListener] = []
         self.connection = ConnectedListener(self)
+        self.space_connection = SpaceConnection(space_id, self.connection)
 
     def _run_socket(self):
         self.run_forever()
@@ -43,10 +44,6 @@ class SpatialWebSocketApp(LoggableMixin, WebSocketApp, ListenerBuilderAware):
                     accepting_listener.process(socket, message_json)
                 except:
                     self._log.exception(f'failed to execute [{accepting_listener}]')
-
-    @property
-    def connection_id(self):
-        return self.connection.connection_id
 
     def start(self):
         self.socket_thread.start()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Callable, Any
+from typing import List, Callable, Any, Dict
 
 from attr import define, field
 from benedict.dicts import benedict
@@ -8,7 +8,8 @@ from benedict.dicts import benedict
 from chat.entity.messages import ChatMessage
 from chat.spatial.api import SpatialApiConnector
 from chat.spatial.listener import BlockingListener, ChatListener
-from chat.spatial.sender import ChatSender
+from chat.spatial.param import SpaceConnection
+from chat.spatial.sender import ChatSender, ChatDeleter
 from chat.spatial.websocket import SpatialWebSocketApp
 from support.mixin import LoggableMixin
 
@@ -19,13 +20,13 @@ class RoomsTreeListener(BlockingListener, LoggableMixin):
         self.sap = sap
         self.rooms = list()
         self.callbacks: List[Callable[[List[Room]], Any]] = list()
-        self.chat_listener = ChatListener(socket)
+        self.room_joiner = RoomJoiner(sap, socket.space_connection, RoomOperations.build(sap, socket))
+
         BlockingListener.__init__(self, socket, 'success.spaceState.roomsTree')
 
     def _on_message(self, socket: SpatialWebSocketApp, message: benedict):
         self.rooms.clear()
-        rooms = [Room(room['id'], room['name'], socket, self.sap, self.chat_listener) for room in
-                 message['success.spaceState.roomsTree']]
+        rooms = [Room.from_json(room_json, self.room_joiner) for room_json in message['success.spaceState.roomsTree']]
         self.rooms.extend(rooms)
         self.info(f'available rooms: {rooms}')
         [cb(rooms) for cb in self.callbacks]
@@ -39,35 +40,59 @@ class RoomsTreeListener(BlockingListener, LoggableMixin):
 
 
 @define
+class RoomOperations:
+    chat_listener: ChatListener = field(repr=False)
+    chat_sender: ChatSender = field(repr=False)
+    chat_deleter: ChatDeleter = field(repr=False)
+
+    @classmethod
+    def build(cls, sap: SpatialApiConnector, socket: SpatialWebSocketApp) -> RoomOperations:
+        return RoomOperations(ChatListener(socket), ChatSender(sap, socket.space_connection),
+                              ChatDeleter(sap, socket.space_connection))
+
+
+@define
+class RoomJoiner:
+    sap: SpatialApiConnector = field(repr=False)
+    space_connection: SpaceConnection = field()
+    room_operations: RoomOperations = field(repr=False)
+
+    def join_room(self, room: Room):
+        self.sap.join_room(self.space_connection, room.room_id)
+        return JoinedRoom(room, self.room_operations)
+
+
+@define
 class Room(LoggableMixin):
     room_id = field()
     name = field()
-    socket: SpatialWebSocketApp = field(repr=False)
-    sap: SpatialApiConnector = field(repr=False)
-    chat_listener: ChatListener = field(repr=False)
+    room_joiner: RoomJoiner = field(repr=False)
 
-    def join(self):
+    def join(self) -> JoinedRoom:
         self.info(f'joining room {self}')
-        self.sap.join_room(self.socket.space_id, self.room_id, self.socket.connection_id)
-        return JoinedRoom(self.room_id, self.name,
-                          self.chat_listener,
-                          ChatSender(self.sap, self.socket.space_id, self.socket.connection_id))
+        return self.room_joiner.join_room(self)
+
+    @classmethod
+    def from_json(cls, room_json: Dict[str, Any], room_joiner: RoomJoiner):
+        return Room(room_json['id'], room_json['name'], room_joiner)
 
 
 @define
 class JoinedRoom(LoggableMixin):
-    room_id = field()
-    name = field()
-    chat_listener: ChatListener = field(repr=False)
-    chat_sender: ChatSender = field(repr=False)
+    room: Room = field()
+    room_operations: RoomOperations = field(repr=False)
 
     def get_chat_messages(self) -> List[ChatMessage]:
         self.info(f'retrieved chats in {self}')
-        return self.chat_listener.room_chats(self.room_id)
+        return self.room_operations.chat_listener.room_chats(self.room.room_id)
 
     def on_new_message(self, callback: Callable[[ChatMessage], Any]):
-        self.chat_listener.register_on_new_message(self.room_id, callback)
+        self.room_operations.chat_listener.register_on_new_message(self.room.room_id, callback)
 
     def send_chat(self, message_text: str):
         self.info(f'sending [{message_text}] to {self}')
-        self.chat_sender.send(self.room_id, message_text)
+        self.room_operations.chat_sender.send(self.room.room_id, message_text)
+
+    def delete_chat(self, chat: ChatMessage):
+        self.info(f'deleting {chat} in  {self.room}')
+        self.room_operations.chat_deleter.delete(self.room.room_id, chat.message_id)

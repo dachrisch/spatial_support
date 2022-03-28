@@ -94,6 +94,10 @@ class ChatListener(LoggableMixin):
             return sorted(self.chats[room_id], key=lambda c: c.created)
 
 
+def is_active_message(chat: benedict):
+    return 'state.active.content' in chat
+
+
 class NewMessageChatListener(LoggableMixin):
     def __init__(self, socket: ListenerBuilderAware, chats: Dict[str, Set[ChatMessage]]):
         LoggableMixin.__init__(self)
@@ -110,9 +114,12 @@ class NewMessageChatListener(LoggableMixin):
 
     def update_chats(self, message: benedict, chats_key: str):
         room_id = message['success.room.id']
-        chat_message = ChatMessage.from_json(message[chats_key])
-        self.chats[room_id].add(chat_message)
-        self.listener[room_id](chat_message)
+        if is_active_message(message[chats_key]):
+            chat_message = ChatMessage.from_json(message[chats_key])
+            self.chats[room_id].add(chat_message)
+            self.listener[room_id](chat_message)
+        else:
+            self.debug(f'omitting inactive message [{message[chats_key]}]')
 
 
 class InitialStateChatListener(LoggableMixin):
@@ -135,7 +142,7 @@ class InitialStateChatListener(LoggableMixin):
         self.debug(f'receiving chats for {room_id}')
         room_chats = set()
         for chat in map(lambda c: benedict(c), message[chats_key]):
-            if 'state.active.content' in chat:
+            if is_active_message(chat):
                 chat_message = ChatMessage.from_json(chat)
                 self.debug(chat_message)
                 room_chats.add(chat_message)

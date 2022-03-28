@@ -5,11 +5,10 @@ from typing import List, Callable, Any, Dict
 from attr import define, field
 
 from chat.entity.messages import LeaveMessage
-from chat.spatial.api import SpatialApiConnector
-from chat.spatial.listener import InitialStateChatListener
-from chat.spatial.websocket import SpatialWebSocketApp
-from chat.entity.secret import AccountSecret
 from chat.entity.room import RoomsTreeListener, Room
+from chat.entity.secret import AccountSecret
+from chat.spatial.api import SpatialApiConnector
+from chat.spatial.websocket import SpatialWebSocketApp
 from support.mixin import LoggableMixin
 
 
@@ -40,8 +39,8 @@ class JoinableSpace(LoggableMixin):
         self.leave()
 
     def join(self) -> JoinedSpace:
-        self.socket.start()
         self.info(f'joining space [{self.space_id}]')
+        self.socket.start()
         return JoinedSpace(self.socket, self.sap)
 
     def leave(self):

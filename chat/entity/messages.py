@@ -26,7 +26,7 @@ def to_relative_duration(delta: timedelta):
         return 'now'
 
 
-def to_datetime(datetime_str: str, local_tz:tzinfo) -> datetime:
+def to_datetime(datetime_str: str, local_tz: tzinfo) -> datetime:
     utc_tz = pytz.timezone('UTC')
     utc_time = datetime.fromisoformat(datetime_str[:-1])
     return local_tz.normalize(utc_tz.localize(utc_time))
@@ -34,18 +34,21 @@ def to_datetime(datetime_str: str, local_tz:tzinfo) -> datetime:
 
 @define(hash=True)
 class ChatMessage:
-    author_name = field()
+    author_name: str = field()
+    message: str = field()
     created: datetime = field()
-    message = field()
-    timezone = field()
+    timezone: pytz.timezone = field()
+    message_id = field()
 
     @classmethod
     def from_json(cls: Type[ChatMessage], chat_json: Dict[Any, Any],
                   local_tz=pytz.timezone('Europe/Berlin')) -> ChatMessage:
         return ChatMessage(chat_json['created.account.account.name'],
-                           to_datetime(chat_json['created.date'], local_tz),
                            chat_json['state.active.content'],
-                           local_tz)
+                           to_datetime(chat_json['created.date'], local_tz),
+                           local_tz,
+                           chat_json['id']
+                           )
 
     @property
     def age(self):

@@ -20,18 +20,19 @@ class TestChatMessageDisplay(TestCase):
 
     def test_convert_from_json(self):
         berlin_tz = pytz.timezone('Europe/Berlin')
-        self.assertEqual(ChatMessage('test name', datetime(2022, 1, 25, 15, 10, 11, 222000).astimezone(berlin_tz), 'test message',
-                                     berlin_tz),
-                         ChatMessage.from_json(benedict({
-                             'created': {'account': {'account': {'name': 'test name'}},
-                                         'date': '2022-01-25T14:10:11.222Z'},
-                             'state': {'active': {'content': 'test message'}}
-                         })))
+        self.assertEqual(
+            ChatMessage('test name', 'test message', datetime(2022, 1, 25, 15, 10, 11, 222000).astimezone(berlin_tz),
+                        berlin_tz, '123'),
+            ChatMessage.from_json(benedict({
+                'created': {'account': {'account': {'name': 'test name'}},
+                            'date': '2022-01-25T14:10:11.222Z'},
+                'state': {'active': {'content': 'test message'}},
+                'id': '123'
+            })))
 
     def test_message_age(self):
         berlin_tz = pytz.timezone('Europe/Berlin')
 
-        message = ChatMessage('test name', datetime.now().astimezone(berlin_tz),
-                              'test message', berlin_tz)
+        message = ChatMessage('test name', 'test message', datetime.now().astimezone(berlin_tz), berlin_tz, '123')
 
-        self.assertEqual('12', message.age)
+        self.assertEqual('now', message.age)

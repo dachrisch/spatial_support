@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional
 from requests import Session
 
 from chat.entity.secret import AccountSecret
+from chat.spatial.param import SpaceConnection
 from support.mixin import LoggableMixin
 
 
@@ -35,14 +36,22 @@ class SpatialApiConnector(LoggableMixin):
         assert AccountSecret.COOKIE_FIELD in self._session.cookies
         return self._session.cookies.get(AccountSecret.COOKIE_FIELD)
 
-    def join_room(self, space_id: str, room_id: str, connection_id: str):
+    def join_room(self, space_connection: SpaceConnection, room_id: str):
         self._validated_put('https://spatial.chat/api/SpaceOnline/joinRoom',
-                            json_payload={'connectionId': connection_id, 'spaceId': space_id, 'roomId': room_id})
+                            json_payload={'connectionId': space_connection.connection_id,
+                                          'spaceId': space_connection.space_id, 'roomId': room_id})
 
-    def send_room_chat(self, space_id: str, room_id: str, connection_id: str, message_text: str):
+    def send_room_chat(self, space_connection: SpaceConnection, room_id: str, message_text: str):
         self._validated_put('https://spatial.chat/api/SpaceOnlineRoomChat/postRoomChatMessage',
-                            json_payload={'connectionId': connection_id, 'spaceId': space_id, 'roomId': room_id,
+                            json_payload={'connectionId': space_connection.connection_id,
+                                          'spaceId': space_connection.space_id, 'roomId': room_id,
                                           'content': message_text})
+
+    def delete_chat_message(self, space_connection: SpaceConnection, room_id: str, message_id: str):
+        self._validated_put('https://spatial.chat/api/SpaceOnlineRoomChat/deleteRoomChatMessage',
+                            json_payload={'connectionId': space_connection.connection_id,
+                                          'spaceId': space_connection.space_id, 'roomId': room_id,
+                                          'messageId': message_id})
 
     def _validated_put(self, uri: str, json_payload: Optional[Dict[Any, Any]] = None) -> Dict[Any, Any]:
         if json_payload:
