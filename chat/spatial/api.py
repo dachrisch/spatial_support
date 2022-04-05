@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from typing import List, Dict, Any, Optional
 
 from requests import Session
@@ -17,6 +18,7 @@ class SpatialApiConnector(LoggableMixin):
         super().__init__()
         self._session = session
 
+    @lru_cache
     def list_space_visited(self) -> List[Dict[Any, Any]]:
         spaces_json = self._validated_put('https://spatial.chat/api/SpaceVisited/listSpaceVisited')
         assert 'spaces' in spaces_json, spaces_json

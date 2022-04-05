@@ -9,7 +9,8 @@ from cattr import unstructure
 from websocket import WebSocketApp
 
 from chat.entity.secret import AccountSecret
-from chat.spatial.listener import OnMessageListener, ListenerBuilder, ConnectedListener, ListenerBuilderAware
+from chat.spatial.listener import OnMessageListener, ListenerBuilder, ListenerBuilderAware, \
+    ConnectionListener
 from chat.spatial.param import SpaceConnection
 from support.mixin import LoggableMixin
 
@@ -24,8 +25,8 @@ class SpatialWebSocketApp(LoggableMixin, WebSocketApp, ListenerBuilderAware):
         ListenerBuilderAware.__init__(self)
         self.socket_thread = Thread(target=self._run_socket)
         self.on_message_listener: List[OnMessageListener] = []
-        self.connection = ConnectedListener(self)
-        self.space_connection = SpaceConnection(space_id, self.connection)
+        self.connection = ConnectionListener(self)
+        self.space_connection = SpaceConnection(space_id, self.connection.connected)
 
     def _run_socket(self):
         self.run_forever()

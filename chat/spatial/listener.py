@@ -62,6 +62,12 @@ class BlockingListener(ABC):
         raise NotImplementedError
 
 
+class ConnectionListener:
+    def __init__(self, socket: ListenerBuilderAware):
+        self.connected = ConnectedListener(socket)
+        self.disconnected = DisconnectedListener(socket)
+
+
 class ConnectedListener(BlockingListener):
     def __init__(self, socket: ListenerBuilderAware):
         super(ConnectedListener, self).__init__(socket, 'success.connected')
@@ -74,6 +80,18 @@ class ConnectedListener(BlockingListener):
     def connection_id(self):
         with self.lock:
             return self._connection_id
+
+
+class DisconnectedError(Exception):
+    pass
+
+
+class DisconnectedListener(BlockingListener):
+    def __init__(self, socket: ListenerBuilderAware):
+        super(DisconnectedListener, self).__init__(socket, 'pickedUp')
+
+    def _on_message(self, socket: WebSocketApp, message: benedict):
+        raise DisconnectedError
 
 
 class ChatListener(LoggableMixin):
