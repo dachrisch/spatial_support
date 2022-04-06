@@ -3,21 +3,18 @@ from __future__ import annotations
 from enum import Enum, auto
 from functools import partial
 from threading import Thread
-from typing import Callable, Any, List, Optional
+from typing import Callable, Any, List
 
 from attr import define, field
 from more_itertools import one
 from py_cui import PyCUI
-from py_cui.keys import KEY_ENTER, KEY_DELETE, KEY_ESCAPE
+from py_cui.keys import KEY_ENTER, KEY_DELETE
 from py_cui.widgets import ScrollMenu, TextBox
 from requests import RequestException
-from websocket import WebSocketConnectionClosedException
 
 from chat.entity.messages import ChatMessage
 from chat.entity.room import JoinedRoom, Room
-from chat.entity.space import JoinedSpace, JoinableSpace
-from chat.tui.widget_set import WidgetSetActivator
-from support.mixin import LoggableMixin
+from chat.entity.space import JoinedSpace
 
 
 @define
@@ -153,36 +150,3 @@ class ChatSendBox:
         self.box.set_selectable(True)
 
 
-class SpaceChatWidgetSet(WidgetSetActivator, LoggableMixin):
-    def __init__(self, cui: PyCUI, joinable_space: JoinableSpace, previous_widget: Optional[WidgetSetActivator]):
-        LoggableMixin.__init__(self)
-        WidgetSetActivator.__init__(self, cui, 4, 3, logger=self._log)
-        self.joinable_space = joinable_space
-        self.previous_widget = previous_widget
-
-        self.add_key_command(KEY_ESCAPE, self.return_to_select_space)
-
-        self.rooms_menu = RoomsListMenu(self.add_scroll_menu('rooms', 0, 0, row_span=4), joinable_space.join(),
-                                        self.cui)
-        self.chats_menu = ChatsListMenu(self.add_scroll_menu('messages', 0, 1, row_span=3, column_span=2))
-        self.chat_send_box = ChatSendBox(self.add_text_box('send message', 3, 1, column_span=2), self.cui)
-
-        self.rooms_menu.register(RoomEvent.PRE_JOIN, self.chats_menu.pre_room_join)
-        self.rooms_menu.register(RoomEvent.POST_JOIN, self.chats_menu.on_room_join)
-        self.rooms_menu.register(RoomEvent.PRE_JOIN, self.chat_send_box.pre_room_join)
-        self.rooms_menu.register(RoomEvent.POST_JOIN, self.chat_send_box.on_room_join)
-
-    def on_activate(self):
-        self.cui.move_focus(self.rooms_menu.rooms_list)
-        self.cui.run_on_exit(self.terminate_space)
-
-    def terminate_space(self):
-        self.info('goodbye')
-        try:
-            self.joinable_space.leave()
-        except WebSocketConnectionClosedException:
-            self.debug('connection already closed')
-
-    def return_to_select_space(self):
-        self.terminate_space()
-        self.previous_widget.activate()

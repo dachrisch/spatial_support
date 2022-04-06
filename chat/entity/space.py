@@ -32,12 +32,6 @@ class JoinableSpace(LoggableMixin):
         self.socket = SpatialWebSocketApp(space_id, secret)
         self.sap = sap
 
-    def __enter__(self) -> JoinedSpace:
-        return self.join()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.leave()
-
     def join(self) -> JoinedSpace:
         self.info(f'joining space [{self.space_id}]')
         self.socket.start()
