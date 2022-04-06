@@ -49,6 +49,7 @@ class RoomsListMenu:
         self.cui = cui
         self.rooms_list = rooms_list
         self.rooms_list.add_item('*** loading rooms ***')
+        self.rooms_list.set_selectable(False)
         self.joined_space = joined_space
         self.joined_space.on_rooms_updated(self.on_rooms_updated)
 
@@ -61,6 +62,7 @@ class RoomsListMenu:
     def on_rooms_updated(self, rooms: List[Room]):
         self.rooms_list.clear()
         self.rooms_list.add_item_list(list(map(lambda r: r.name, rooms)))
+        self.rooms_list.set_selectable(True)
 
     def register(self, event: RoomEvent, callback: Callable[[Any], Any]):
         self.event_listener[event].append(callback)

@@ -46,7 +46,7 @@ class SpaceChatWidgetSet(WidgetSetActivator, LoggableMixin):
 
         self.rooms_menu = RoomsListMenu(self.add_scroll_menu('rooms', 0, 0, row_span=4), joinable_space.join(),
                                         self.cui)
-        self.chats_menu = ChatsListMenu(self.add_scroll_menu('messages', 0, 1, row_span=3, column_span=2))
+        self.chats_menu = ChatsListMenu(self.add_scroll_menu('messages', 0, 1, row_span=3, column_span=2), self.cui)
         self.chat_send_box = ChatSendBox(self.add_text_box('send message', 3, 1, column_span=2), self.cui)
 
         self.rooms_menu.register(RoomEvent.PRE_JOIN, self.chats_menu.pre_room_join)
