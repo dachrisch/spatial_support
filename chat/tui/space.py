@@ -9,7 +9,8 @@ from websocket import WebSocketConnectionClosedException
 
 from chat.entity.account import AuthenticatedAccount
 from chat.entity.space import JoinableSpace
-from chat.tui.room import RoomsListMenu, ChatsListMenu, ChatSendBox, RoomEvent
+from chat.tui.chat import ChatsListMenu, ChatSendBox
+from chat.tui.room import RoomsListMenu, RoomEvent
 from chat.tui.widget_set import WidgetSetActivator
 from support.mixin import LoggableMixin
 
