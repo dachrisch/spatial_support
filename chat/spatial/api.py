@@ -60,6 +60,12 @@ class SpatialApiConnector(LoggableMixin):
                                           'spaceId': space_connection.space_id, 'roomId': room_id,
                                           'messageId': message_id})
 
+    def get_direct_message_chat_page(self, account_id: str):
+        chats_json = self._validated_put('https://spatial.chat/api/DirectChat/getDirectMessageChatPage',
+                                         json_payload={'accountId': account_id})
+        assert 'messages' in chats_json
+        return chats_json['messages']
+
     def _validated_put(self, uri: str, json_payload: Optional[Dict[Any, Any]] = None) -> Dict[Any, Any]:
         if json_payload:
             # XXX: that bug cost me hours of lifetime - the api hangs if there are whitespaces in the json string. what the f*ck

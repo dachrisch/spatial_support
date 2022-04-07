@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Dict, Any
 
 import pytz as pytz
 from attr import define, field
-
-from chat.entity.account import ChatAccount
+from benedict.dicts import benedict
 
 
 @define
@@ -42,7 +40,7 @@ class ChatMessage:
     message_id = field()
 
     @classmethod
-    def from_json(cls, chat_json: Dict[Any, Any], local_tz=pytz.timezone('Europe/Berlin')) -> ChatMessage:
+    def from_json(cls, chat_json: benedict, local_tz=pytz.timezone('Europe/Berlin')) -> ChatMessage:
         return ChatMessage(chat_json['created.account.account.name'],
                            chat_json['state.active.content'],
                            to_datetime(chat_json['created.date'], local_tz),
@@ -54,12 +52,3 @@ class ChatMessage:
     def age(self):
         now = datetime.now(self.timezone)
         return to_relative_duration(now - self.created)
-
-
-@define
-class DirectChat:
-    chat_account: ChatAccount = field()
-
-    @classmethod
-    def from_json(cls, chat_json: Dict[Any, Any]):
-        return DirectChat(ChatAccount.from_json(chat_json['account']))

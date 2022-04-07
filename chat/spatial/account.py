@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from logging import getLogger
-from typing import Optional
+from typing import Optional, List
 
 from attr import define, field
 from cattr import unstructure, structure
@@ -22,7 +22,7 @@ class AuthenticatedAccount(LoggableMixin):
     def __attrs_post_init__(self):
         self.info(f'authenticated account [{self.account_secret.email}]')
 
-    def list_spaces(self):
+    def list_spaces(self) -> List[Space]:
         spaces_json = self.sap.list_space_visited()
         visited_spaces = [Space.from_dict(space_json, self.sap) for space_json in spaces_json]
         self.info(f'list visited spaces: {visited_spaces}')
