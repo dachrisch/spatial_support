@@ -27,21 +27,22 @@ class ChatsListMenu:
         selected_index = self.chats_list.get_selected_item_index()
         chat_index = len(self.chat_messages) - selected_index - 1
 
-        chat = self.chat_messages[chat_index]
-        ascii_author = chat.author_name.encode("ascii", "ignore").decode().strip()
-        _, root_width = self.cui.get_absolute_size()
-        total_width = (int(3 * root_width / 4)) - int(root_width / 4) - 7
-        words = chat.message.split(' ')
-        display_lines = ['', '']
-        current_line = 1
-        for word in words:
-            if len(display_lines[current_line]) + len(word) > total_width:
-                display_lines.append('')
-                current_line += 1
-            display_lines[current_line] = ' '.join((display_lines[current_line], word))
+        if 0 <= chat_index < len(self.chat_messages):
+            chat = self.chat_messages[chat_index]
+            ascii_author = chat.author_name.encode("ascii", "ignore").decode().strip()
+            _, root_width = self.cui.get_absolute_size()
+            total_width = (int(3 * root_width / 4)) - int(root_width / 4) - 7
+            words = chat.message.split(' ')
+            display_lines = ['', '']
+            current_line = 1
+            for word in words:
+                if len(display_lines[current_line]) + len(word) > total_width:
+                    display_lines.append('')
+                    current_line += 1
+                display_lines[current_line] = ' '.join((display_lines[current_line], word))
 
-        self.cui.show_menu_popup(f'[{ascii_author}] @ [{chat.created.strftime("%Y/%m/%d %H:%M:%S")}]',
-                                 display_lines, lambda x: x)
+            self.cui.show_menu_popup(f'[{ascii_author}] @ [{chat.created.strftime("%Y/%m/%d %H:%M:%S")}]',
+                                     display_lines, lambda x: x)
 
     def command_delete_chat_message(self):
         selected_index = self.chats_list.get_selected_item_index()

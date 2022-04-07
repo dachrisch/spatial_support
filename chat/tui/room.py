@@ -68,6 +68,8 @@ class RoomsListMenu:
         self.event_listener[event].append(callback)
 
     def command_join_room(self):
+        if not self.rooms_list.get() or not self.rooms_list.is_selectable():
+            return
         try:
             selected_room = one(filter(lambda r: r.name == self.rooms_list.get(), self.joined_space.list_rooms()))
             self.inform_listener(RoomEvent.PRE_JOIN, selected_room)
