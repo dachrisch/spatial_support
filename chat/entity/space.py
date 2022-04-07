@@ -6,7 +6,7 @@ from attr import define, field
 
 from chat.entity.account import AccountSecret
 from chat.entity.messages import LeaveMessage
-from chat.entity.room import RoomsTreeListener, Room
+from chat.entity.room import RoomsTreeListener, Room, RoomJoiner, RoomOperations
 from chat.spatial.api import SpatialApiConnector
 from chat.spatial.ws_space import SpatialWebSocketAppWrapper
 from support.mixin import LoggableMixin
@@ -34,7 +34,8 @@ class JoinableSpace(LoggableMixin):
     def join(self) -> JoinedSpace:
         self.info(f'joining space [{self.space_id}]')
         self.socket.start()
-        return JoinedSpace(self.space_id, RoomsTreeListener(self.socket, self.sap))
+        room_joiner = RoomJoiner(self.sap, self.socket.space_connection, RoomOperations.build(self.sap, self.socket))
+        return JoinedSpace(self.space_id, RoomsTreeListener(room_joiner, self.socket))
 
     def leave(self):
         self.socket.send_message(LeaveMessage())

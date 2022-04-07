@@ -26,11 +26,11 @@ class SpatialChatTui:
         self.cui.start()
 
 
-if __name__ == '1__main__':
+if __name__ == '__main__':
     basicConfig(filename='cui.log', filemode='w', level=DEBUG)
     SpatialChatTui().start()
 
-if __name__ == '__main__':
+if __name__ == '1__main__':
     basicConfig(level=DEBUG)
     with FileAccount.from_file('chat/account.secret') as account:
         account_profile = account.sap.get_account_profile()

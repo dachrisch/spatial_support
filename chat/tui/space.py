@@ -32,7 +32,7 @@ class SpaceSelectWidgetSet(WidgetSetActivator, LoggableMixin):
     def select_space(self):
         selected_space_name = self.spaces_list.get()
         selected_space = one(filter(lambda s: s.name == selected_space_name, self.account.list_spaces()))
-        joinable_space = selected_space.connect(self.account.secret)
+        joinable_space = selected_space.connect(self.account.account_secret)
         SpaceChatWidgetSet(self.cui, joinable_space, self).activate()
 
 

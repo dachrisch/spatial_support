@@ -4,6 +4,7 @@ import json
 from logging import getLogger
 from typing import Optional
 
+from attr import define, field
 from cattr import unstructure, structure
 from requests import Session
 
@@ -13,13 +14,13 @@ from chat.spatial.api import SpatialApiConnector
 from support.mixin import LoggableMixin
 
 
+@define
 class AuthenticatedAccount(LoggableMixin):
+    sap: SpatialApiConnector = field(repr=False)
+    account_secret: AccountSecret = field()
 
-    def __init__(self, sap: SpatialApiConnector, account_secret: AccountSecret, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.sap = sap
-        self.secret = account_secret
-        self.info(f'authenticated account [{self.secret.email}]')
+    def __attrs_post_init__(self):
+        self.info(f'authenticated account [{self.account_secret.email}]')
 
     def list_spaces(self):
         spaces_json = self.sap.list_space_visited()
@@ -29,14 +30,13 @@ class AuthenticatedAccount(LoggableMixin):
 
     def to_file(self, filename: str):
         with open(filename, 'w') as file:
-            json.dump(unstructure(self.secret), file)
+            json.dump(unstructure(self.account_secret), file)
 
 
+@define
 class FileAccount(LoggableMixin):
-    def __init__(self, secret: AccountSecret, sap: Optional[SpatialApiConnector] = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.secret = secret
-        self.sap = sap
+    account_secret: AccountSecret = field()
+    sap: Optional[SpatialApiConnector] = field(repr=False, default=None)
 
     def __enter__(self):
         return self.authenticate()
@@ -47,8 +47,8 @@ class FileAccount(LoggableMixin):
     def authenticate(self):
         if not self.sap:
             self.sap = SpatialApiConnector(Session())
-        self.sap.authenticate(self.secret)
-        return AuthenticatedAccount(self.sap, self.secret)
+        self.sap.authenticate(self.account_secret)
+        return AuthenticatedAccount(self.sap, self.account_secret)
 
     @classmethod
     def from_file(cls, filename: str) -> FileAccount:
@@ -58,30 +58,25 @@ class FileAccount(LoggableMixin):
             return FileAccount(secret)
 
 
+@define
 class UnauthenticatedEmailAccount:
-
-    def __init__(self, email: str, sap: SpatialApiConnector, auth_key: str):
-        self.auth_key = auth_key
-        self.sap = sap
-        self.email = email
-        self.__tries = 0
+    email: str = field()
+    sap: SpatialApiConnector = field(repr=False)
+    auth_key: str = field(repr=False)
+    remaining_tries: int = field(default=3)
 
     def validate_by_magic_code(self, magic_code: str) -> AuthenticatedAccount:
-        self.__tries += 1
+        self.remaining_tries -= 1
         auth = self.sap.auth_account_by_magic_link(self.auth_key, magic_code)
         return AuthenticatedAccount(self.sap, AccountSecret(self.email, auth))
 
-    @property
-    def tries(self):
-        return self.__tries
 
-
+@define
 class EmailAccount:
-    headers = {'x-client-version': '-1'}
+    email: str = field()
+    sap: Optional[SpatialApiConnector] = field(repr=False, default=None)
 
-    def __init__(self, email: str, sap: Optional[SpatialApiConnector] = None):
-        self.email = email
-        self.sap = sap
+    headers = {'x-client-version': '-1'}
 
     def __enter__(self) -> UnauthenticatedEmailAccount:
         return self.register()

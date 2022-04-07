@@ -46,10 +46,11 @@ class EmailLoginFlow(LoggableMixin):
 
     def show_magic_code_popup(self, registered_account: UnauthenticatedEmailAccount):
         fields = ['Magic Code']
-        self.cui.show_form_popup(f'[{registered_account.tries}] Enter Magic Code for {registered_account.email}',
-                                 fields,
-                                 required=fields,
-                                 callback=partial(self.login_to_account, registered_account))
+        self.cui.show_form_popup(
+            f'[{registered_account.remaining_tries}] Enter Magic Code for {registered_account.email}',
+            fields,
+            required=fields,
+            callback=partial(self.login_to_account, registered_account))
 
     def login_to_account(self, unauthenticated_account: UnauthenticatedEmailAccount, magic_code_form: Dict[str, str]):
         magic_code = magic_code_form['Magic Code']
@@ -57,11 +58,12 @@ class EmailLoginFlow(LoggableMixin):
             authenticated_account = unauthenticated_account.validate_by_magic_code(magic_code)
             SpaceSelectWidgetSet(self.cui, authenticated_account).activate()
         except AssertionError as ae:
-            if unauthenticated_account.tries < 3:
+            if unauthenticated_account.remaining_tries:
                 self.show_magic_code_popup(unauthenticated_account)
             else:
-                self.cui.show_error_popup(f'Error while validating code. Tried [{unauthenticated_account.tries}] times',
-                                          f'{ae}')
+                self.cui.show_error_popup(
+                    f'Error while validating code. Tried [{unauthenticated_account.remaining_tries}] times',
+                    f'{ae}')
 
 
 class FileLoginFlow:

@@ -14,15 +14,15 @@ from chat.spatial.ws_space import SpatialWebSocketAppWrapper
 from support.mixin import LoggableMixin
 
 
+@define
 class RoomsTreeListener(BlockingListener, LoggableMixin):
-    def __init__(self, socket: SpatialWebSocketAppWrapper, sap: SpatialApiConnector):
-        LoggableMixin.__init__(self)
-        self.sap = sap
-        self.rooms = list()
-        self.callbacks: List[Callable[[List[Room]], Any]] = list()
-        self.room_joiner = RoomJoiner(sap, socket.space_connection, RoomOperations.build(sap, socket))
+    room_joiner: RoomJoiner = field(repr=False)
+    socket: SpatialWebSocketAppWrapper = field(repr=False)
+    rooms: List[Room] = field(default=list())
+    callbacks: List[Callable[[List[Room]], Any]] = field(repr=False, default=list())
 
-        BlockingListener.__init__(self, socket, 'success.spaceState.roomsTree')
+    def __attrs_post_init__(self):
+        BlockingListener.__init__(self, self.socket, 'success.spaceState.roomsTree')
 
     def _on_message(self, socket: SpatialWebSocketAppWrapper, message: benedict):
         self.rooms.clear()
