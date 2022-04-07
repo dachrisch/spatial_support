@@ -22,6 +22,7 @@ class RoomsTreeListener(BlockingListener, LoggableMixin):
         self.rooms: List[Room] = list()
         self.callbacks: List[Callable[[List[Room]], Any]] = list()
         BlockingListener.__init__(self, self.socket, 'success.spaceState.roomsTree')
+        LoggableMixin.__init__(self)
 
     def _on_message(self, socket: SpatialWebSocketAppWrapper, message: benedict):
         self.rooms.clear()
