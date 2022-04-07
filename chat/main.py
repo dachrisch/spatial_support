@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from logging import basicConfig, INFO, ERROR, DEBUG
+from logging import ERROR, basicConfig, DEBUG
 
 from py_cui import PyCUI
 
-from chat.entity.account import FileAccount
+from chat.spatial.account import FileAccount
+from chat.spatial.ws_direct import DirectChatSocketAppWrapper
 from chat.tui.space import SpaceSelectWidgetSet
 
 
@@ -25,6 +26,17 @@ class SpatialChatTui:
         self.cui.start()
 
 
-if __name__ == '__main__':
+if __name__ == '1__main__':
     basicConfig(filename='cui.log', filemode='w', level=DEBUG)
     SpatialChatTui().start()
+
+if __name__ == '__main__':
+    basicConfig(level=DEBUG)
+    with FileAccount.from_file('chat/account.secret') as account:
+        account_profile = account.sap.get_account_profile()
+
+        direct_chat = DirectChatSocketAppWrapper.from_account(account_profile, account.secret)
+        direct_chat.start()
+        chats = direct_chat.existing_direct_chats.get_chats()
+        print(chats)
+        direct_chat.end()

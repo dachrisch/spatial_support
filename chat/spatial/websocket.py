@@ -1,35 +1,43 @@
 from __future__ import annotations
 
 import json
+from json import loads
 from threading import Thread
-from typing import List
 
 from benedict.dicts import benedict
 from cattr import unstructure
 from websocket import WebSocketApp
 
-from chat.entity.secret import AccountSecret
-from chat.spatial.listener import OnMessageListener, ListenerBuilder, ListenerBuilderAware, \
-    ConnectionListener
-from chat.spatial.param import SpaceConnection
+from chat.spatial.listener import ListenerBuilderAware
 from support.mixin import LoggableMixin
 
 
-class SpatialWebSocketApp(LoggableMixin, WebSocketApp, ListenerBuilderAware):
-    socket_endpoint = 'wss://spatial.chat/api/SpaceOnline/onlineSpace'
+class ThreadedWebSocketAppMixin(LoggableMixin):
 
-    def __init__(self, space_id: str, secret: AccountSecret):
+    def __init__(self, socket: WebSocketApp):
         LoggableMixin.__init__(self)
-        WebSocketApp.__init__(self, f'{self.socket_endpoint}?spaceId={space_id}', on_message=self._on_message,
-                              on_open=self._on_open, cookie=f'authorization={secret.auth_code}')
-        ListenerBuilderAware.__init__(self)
+        self.socket = socket
         self.socket_thread = Thread(target=self._run_socket)
-        self.on_message_listener: List[OnMessageListener] = []
-        self.connection = ConnectionListener(self)
-        self.space_connection = SpaceConnection(space_id, self.connection.connected)
+
+    def start(self):
+        self.debug(f'starting socket thread [{self.socket_thread.name}]')
+        self.socket_thread.start()
+
+    def end(self):
+        self.socket.close()
+        self.socket_thread.join(timeout=1)
 
     def _run_socket(self):
-        self.run_forever()
+        self.debug(f'running forever in thread {self.socket.url}')
+        self.socket.run_forever()
+
+
+class MessageHandlingWebSocketMixin(ListenerBuilderAware):
+    def __init__(self, socket: WebSocketApp):
+        ListenerBuilderAware.__init__(self)
+        self.socket = socket
+        socket.on_open = self._on_open
+        socket.on_message = self._on_message
 
     def _on_open(self, socket: WebSocketApp):
         self.debug(f'opened socket {socket.url}')
@@ -39,22 +47,12 @@ class SpatialWebSocketApp(LoggableMixin, WebSocketApp, ListenerBuilderAware):
         if 'ping' == message:
             socket.send('pong')
         else:
-            message_json = benedict(json.loads(message))
-            for accepting_listener in filter(lambda l: l.accepts(message_json), self.on_message_listener):
-                try:
-                    accepting_listener.process(socket, message_json)
-                except:
-                    self._log.exception(f'failed to execute [{accepting_listener}]')
+            self.process_listener(socket, benedict(loads(message)))
 
-    def start(self):
-        self.socket_thread.start()
 
-    def end(self):
-        self.close()
-        self.socket_thread.join(timeout=1)
-
-    def on(self, message_type: str):
-        return ListenerBuilder(self.on_message_listener, message_type)
+class MessageSendingWebSocketMixin:
+    def __init__(self, socket: WebSocketApp):
+        self.socket = socket
 
     def send_message(self, message: object):
-        self.send(json.dumps(unstructure(message)))
+        self.socket.send(json.dumps(unstructure(message)))

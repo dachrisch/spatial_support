@@ -5,10 +5,11 @@ from typing import Optional
 from more_itertools import one
 from py_cui import PyCUI
 from py_cui.keys import KEY_ENTER, KEY_ESCAPE
+from py_cui.widgets import ScrollMenu
 from websocket import WebSocketConnectionClosedException
 
-from chat.entity.account import AuthenticatedAccount
 from chat.entity.space import JoinableSpace
+from chat.spatial.account import AuthenticatedAccount
 from chat.tui.chat import ChatsListMenu, ChatSendBox
 from chat.tui.room import RoomsListMenu, RoomEvent
 from chat.tui.widget_set import WidgetSetActivator
@@ -35,6 +36,12 @@ class SpaceSelectWidgetSet(WidgetSetActivator, LoggableMixin):
         SpaceChatWidgetSet(self.cui, joinable_space, self).activate()
 
 
+class DirectChatListMenu:
+    def __init__(self, direct_list: ScrollMenu, cui: PyCUI):
+        self.cui = cui
+        self.direct_list = direct_list
+
+
 class SpaceChatWidgetSet(WidgetSetActivator, LoggableMixin):
     def __init__(self, cui: PyCUI, joinable_space: JoinableSpace, previous_widget: Optional[WidgetSetActivator]):
         LoggableMixin.__init__(self)
@@ -44,10 +51,11 @@ class SpaceChatWidgetSet(WidgetSetActivator, LoggableMixin):
 
         self.add_key_command(KEY_ESCAPE, self.return_to_select_space)
 
-        self.rooms_menu = RoomsListMenu(self.add_scroll_menu('rooms', 0, 0, row_span=4), joinable_space.join(),
+        self.rooms_menu = RoomsListMenu(self.add_scroll_menu('rooms', 0, 0, row_span=2), joinable_space.join(),
                                         self.cui)
         self.chats_menu = ChatsListMenu(self.add_scroll_menu('messages', 0, 1, row_span=3, column_span=2), self.cui)
         self.chat_send_box = ChatSendBox(self.add_text_box('send message', 3, 1, column_span=2), self.cui)
+        self.direct_chat_menu = DirectChatListMenu(self.add_scroll_menu('direct', 2, 0, row_span=2), self.cui)
 
         self.rooms_menu.register(RoomEvent.PRE_JOIN, self.chats_menu.pre_room_join)
         self.rooms_menu.register(RoomEvent.POST_JOIN, self.chats_menu.on_room_join)

@@ -9,14 +9,24 @@ from attr import define, field
 from benedict.dicts import benedict
 from websocket import WebSocketApp
 
-from chat.entity.messages import ChatMessage
+from chat.entity.messages import ChatMessage, DirectChat
 from support.mixin import LoggableMixin
 
 
-class ListenerBuilderAware(ABC):
-    @abstractmethod
+class ListenerBuilderAware(LoggableMixin):
+    def __init__(self):
+        LoggableMixin.__init__(self)
+        self.on_message_listener: List[OnMessageListener] = []
+
     def on(self, message_type: str) -> ListenerBuilder:
-        raise NotImplementedError
+        return ListenerBuilder(self.on_message_listener, message_type)
+
+    def process_listener(self, socket: WebSocketApp, message_json: benedict):
+        for accepting_listener in filter(lambda l: l.accepts(message_json), self.on_message_listener):
+            try:
+                accepting_listener.process(socket, message_json)
+            except:
+                self._log.exception(f'failed to execute [{accepting_listener}]')
 
 
 @define
@@ -167,3 +177,17 @@ class InitialStateChatListener(LoggableMixin):
             else:
                 self.debug(f'omitting inactive message [{chat}]')
         return room_id, room_chats
+
+
+class ExistingDirectChatsListener(BlockingListener):
+    def __init__(self, socket: ListenerBuilderAware):
+        BlockingListener.__init__(self, socket, 'success.state.chats')
+        self.chats: List[DirectChat] = list()
+
+    def _on_message(self, socket: WebSocketApp, message: benedict):
+        for chat in message['success.state.chats']:
+            self.chats.append(DirectChat.from_json(chat['account']))
+
+    def get_chats(self):
+        with self.lock:
+            return self.chats

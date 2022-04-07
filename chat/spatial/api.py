@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 
 from requests import Session
 
-from chat.entity.secret import AccountSecret
+from chat.entity.account import AccountSecret, AccountProfile
 from chat.spatial.param import SpaceConnection
 from support.mixin import LoggableMixin
 
@@ -29,6 +29,11 @@ class SpatialApiConnector(LoggableMixin):
                                            json_payload={'email': email})
         assert 'authKey' in account_json
         return account_json['authKey']
+
+    def get_account_profile(self) -> AccountProfile:
+        account_json = self._validated_put('https://spatial.chat/api/Account/getAccountProfile')
+        assert 'accountId' in account_json
+        return AccountProfile.from_json(account_json)
 
     def auth_account_by_magic_link(self, auth_key: str, magic_code: str) -> str:
         self._validated_put('https://spatial.chat/api/Account/authAccountByMagicLink', json_payload={

@@ -10,12 +10,12 @@ from chat.spatial.api import SpatialApiConnector
 from chat.spatial.listener import BlockingListener, ChatListener
 from chat.spatial.param import SpaceConnection
 from chat.spatial.sender import ChatSender, ChatDeleter
-from chat.spatial.websocket import SpatialWebSocketApp
+from chat.spatial.ws_space import SpatialWebSocketAppWrapper
 from support.mixin import LoggableMixin
 
 
 class RoomsTreeListener(BlockingListener, LoggableMixin):
-    def __init__(self, socket: SpatialWebSocketApp, sap: SpatialApiConnector):
+    def __init__(self, socket: SpatialWebSocketAppWrapper, sap: SpatialApiConnector):
         LoggableMixin.__init__(self)
         self.sap = sap
         self.rooms = list()
@@ -24,7 +24,7 @@ class RoomsTreeListener(BlockingListener, LoggableMixin):
 
         BlockingListener.__init__(self, socket, 'success.spaceState.roomsTree')
 
-    def _on_message(self, socket: SpatialWebSocketApp, message: benedict):
+    def _on_message(self, socket: SpatialWebSocketAppWrapper, message: benedict):
         self.rooms.clear()
         rooms = [Room.from_json(room_json, self.room_joiner) for room_json in message['success.spaceState.roomsTree']]
         self.rooms.extend(rooms)
@@ -46,7 +46,7 @@ class RoomOperations:
     chat_deleter: ChatDeleter = field(repr=False)
 
     @classmethod
-    def build(cls, sap: SpatialApiConnector, socket: SpatialWebSocketApp) -> RoomOperations:
+    def build(cls, sap: SpatialApiConnector, socket: SpatialWebSocketAppWrapper) -> RoomOperations:
         return RoomOperations(ChatListener(socket), ChatSender(sap, socket.space_connection),
                               ChatDeleter(sap, socket.space_connection))
 

@@ -1,15 +1,19 @@
 from typing import List, Dict, Any
 from unittest import TestCase
 
-from chat.spatial.api import SpatialApiConnector
-from chat.entity.account import AuthenticatedAccount, EmailAccount
-from chat.entity.secret import AccountSecret
+from requests import Session
+
+from chat.entity.account import AccountSecret
 from chat.entity.space import Space
+from chat.spatial.account import AuthenticatedAccount, EmailAccount
+from chat.spatial.api import SpatialApiConnector
 
 
 class SpatialApiConnectorMock(SpatialApiConnector):
     def __init__(self):
-        super().__init__(None)
+        session = Session()
+        session.close()
+        super().__init__(session)
 
     def register_account(self, email: str) -> str:
         return 'authKey-1234'

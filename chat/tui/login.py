@@ -6,7 +6,7 @@ from typing import Dict
 
 from py_cui import PyCUI
 
-from chat.entity.account import EmailAccount, UnauthenticatedEmailAccount, FileAccount
+from chat.spatial.account import EmailAccount, UnauthenticatedEmailAccount, FileAccount
 from chat.tui.space import SpaceSelectWidgetSet
 from support.mixin import LoggableMixin
 
