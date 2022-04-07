@@ -10,7 +10,7 @@ from chat.spatial.api import SpatialApiConnector
 from chat.spatial.listener import BlockingListener, ChatListener
 from chat.spatial.param import SpaceConnection
 from chat.spatial.sender import ChatSender, ChatDeleter
-from chat.spatial.ws_space import SpatialWebSocketAppWrapper
+from chat.spatial.websocket.space import SpatialWebSocketAppWrapper
 from support.mixin import LoggableMixin
 
 

@@ -4,7 +4,7 @@ from websocket import WebSocketApp
 
 from chat.entity.account import AccountProfile, AccountSecret
 from chat.spatial.listener import ExistingDirectChatsListener
-from chat.spatial.websocket import ThreadedWebSocketAppMixin, MessageHandlingWebSocketMixin
+from chat.spatial.websocket.base import ThreadedWebSocketAppMixin, MessageHandlingWebSocketMixin
 
 
 class DirectChatSocketAppWrapper(ThreadedWebSocketAppMixin, MessageHandlingWebSocketMixin):

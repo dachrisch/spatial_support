@@ -8,7 +8,7 @@ from chat.entity.account import AccountSecret
 from chat.entity.messages import LeaveMessage
 from chat.entity.room import RoomsTreeListener, Room, RoomJoiner, RoomOperations
 from chat.spatial.api import SpatialApiConnector
-from chat.spatial.ws_space import SpatialWebSocketAppWrapper
+from chat.spatial.websocket.space import SpatialWebSocketAppWrapper
 from support.mixin import LoggableMixin
 
 

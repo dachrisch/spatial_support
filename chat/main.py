@@ -5,7 +5,7 @@ from logging import ERROR, basicConfig, DEBUG
 from py_cui import PyCUI
 
 from chat.spatial.account import FileAccount
-from chat.spatial.ws_direct import DirectChatSocketAppWrapper
+from chat.spatial.websocket.direct import DirectChatSocketAppWrapper
 from chat.tui.space import SpaceSelectWidgetSet
 
 

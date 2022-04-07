@@ -5,7 +5,7 @@ from websocket import WebSocketApp
 from chat.entity.account import AccountSecret
 from chat.spatial.listener import ConnectionListener
 from chat.spatial.param import SpaceConnection
-from chat.spatial.websocket import ThreadedWebSocketAppMixin, MessageHandlingWebSocketMixin, \
+from chat.spatial.websocket.base import ThreadedWebSocketAppMixin, MessageHandlingWebSocketMixin, \
     MessageSendingWebSocketMixin
 
 
