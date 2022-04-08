@@ -5,3 +5,4 @@ py-cui
 attrs
 python-benedict
 pytz
+cattrs
