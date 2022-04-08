@@ -20,8 +20,10 @@ class TestChatMessageDisplay(TestCase):
 
     def test_to_date(self):
         berlin_tz = pytz.timezone('Europe/Berlin')
-
-        self.assertEqual(datetime(2022, 1, 25, 15, 10, 11, 222000).astimezone(berlin_tz),
+        test_time = datetime(2022, 1, 25, 15, 10, 11, 222000)
+        self.assertEqual(None, test_time.tzname())
+        self.assertEqual(15, test_time.hour)
+        self.assertEqual(test_time.astimezone(berlin_tz),
                          to_datetime('2022-01-25T14:10:11.222Z', berlin_tz))
 
     def test_convert_from_json(self):
