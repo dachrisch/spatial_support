@@ -52,5 +52,5 @@ class ChatMessage:
 
     @property
     def age(self):
-        now = datetime.now(self.timezone)
-        return to_relative_duration(now - self.created)
+        now = self.timezone.localize(datetime.now())
+        return to_relative_duration(now - self.creatked)
