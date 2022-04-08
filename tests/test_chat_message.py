@@ -23,6 +23,7 @@ class TestChatMessageDisplay(TestCase):
         test_time = datetime(2022, 1, 25, 15, 10, 11, 222000)
         self.assertEqual(None, test_time.tzname())
         self.assertEqual(15, test_time.hour)
+        self.assertEqual(15, test_time.astimezone(berlin_tz).hour)
         self.assertEqual(test_time.astimezone(berlin_tz),
                          to_datetime('2022-01-25T14:10:11.222Z', berlin_tz))
 
