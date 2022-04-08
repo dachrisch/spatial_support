@@ -20,17 +20,15 @@ class TestChatMessageDisplay(TestCase):
 
     def test_to_date(self):
         berlin_tz = pytz.timezone('Europe/Berlin')
-        test_time = datetime(2022, 1, 25, 15, 10, 11, 222000)
-        self.assertEqual(None, test_time.tzname())
+        test_time = berlin_tz.localize(datetime(2022, 1, 25, 15, 10, 11, 222000))
         self.assertEqual(15, test_time.hour)
-        self.assertEqual(15, test_time.astimezone(berlin_tz).hour)
-        self.assertEqual(test_time.astimezone(berlin_tz),
+        self.assertEqual(test_time,
                          to_datetime('2022-01-25T14:10:11.222Z', berlin_tz))
 
     def test_convert_from_json(self):
         berlin_tz = pytz.timezone('Europe/Berlin')
         self.assertEqual(
-            ChatMessage('test name', 'test message', datetime(2022, 1, 25, 15, 10, 11, 222000).astimezone(berlin_tz),
+            ChatMessage('test name', 'test message', berlin_tz.localize(datetime(2022, 1, 25, 15, 10, 11, 222000)),
                         berlin_tz, '123'),
             ChatMessage.from_json(benedict({
                 'created': {'account': {'account': {'name': 'test name'}},
