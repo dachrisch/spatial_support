@@ -22,8 +22,13 @@ class TestChatMessageDisplay(TestCase):
         berlin_tz = pytz.timezone('Europe/Berlin')
         test_time = berlin_tz.localize(datetime(2022, 1, 25, 15, 10, 11, 222000))
         self.assertEqual(15, test_time.hour)
-        self.assertEqual(test_time,
-                         to_datetime('2022-01-25T14:10:11.222Z', berlin_tz))
+
+        self.assertEqual('LMT', datetime(2022, 1, 25, 15, 10, 11, 222000, berlin_tz).tzname(), 'we do not want this')
+        self.assertEqual('CET', berlin_tz.localize(datetime(2022, 1, 25, 15, 10, 11, 222000)).tzname(),
+                         'we DO want this')
+        self.assertEqual(15, datetime(2022, 1, 25, 15, 10, 11, 222000).astimezone(berlin_tz).hour, 'we DO want this')
+
+        self.assertEqual(test_time, to_datetime('2022-01-25T14:10:11.222Z', berlin_tz))
 
     def test_convert_from_json(self):
         berlin_tz = pytz.timezone('Europe/Berlin')
@@ -40,6 +45,6 @@ class TestChatMessageDisplay(TestCase):
     def test_message_age(self):
         berlin_tz = pytz.timezone('Europe/Berlin')
 
-        message = ChatMessage('test name', 'test message', datetime.now().astimezone(berlin_tz), berlin_tz, '123')
+        message = ChatMessage('test name', 'test message', berlin_tz.localize(datetime.now()), berlin_tz, '123')
 
         self.assertEqual('now', message.age)
