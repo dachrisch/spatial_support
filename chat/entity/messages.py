@@ -28,7 +28,12 @@ def to_relative_duration(delta: timedelta):
 def to_datetime(datetime_str: str, local_tz) -> datetime:
     utc_tz = pytz.timezone('UTC')
     utc_time = datetime.fromisoformat(datetime_str[:-1])
-    return local_tz.normalize(utc_tz.localize(utc_time))
+    print(f'utc time: {utc_time}')
+    utc_tz_localized = utc_tz.localize(utc_time)
+    print(f'localized to [{utc_tz}]: {utc_tz_localized}')
+    normalized = local_tz.normalize(utc_tz_localized)
+    print(f'normalized to [{local_tz}]: {normalized}')
+    return normalized
 
 
 @define(hash=True)

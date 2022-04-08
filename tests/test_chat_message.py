@@ -4,7 +4,7 @@ from unittest import TestCase
 import pytz
 from benedict.dicts import benedict
 
-from chat.entity.messages import to_relative_duration, ChatMessage
+from chat.entity.messages import to_relative_duration, ChatMessage, to_datetime
 
 
 class TestChatMessageDisplay(TestCase):
@@ -17,6 +17,12 @@ class TestChatMessageDisplay(TestCase):
         self.assertEqual('-1d', to_relative_duration(timedelta(days=1)))
         self.assertEqual('-24d', to_relative_duration(timedelta(days=24, hours=3)))
         self.assertEqual('>1y', to_relative_duration(timedelta(days=356, hours=3)))
+
+    def test_to_date(self):
+        berlin_tz = pytz.timezone('Europe/Berlin')
+
+        self.assertEqual(datetime(2022, 1, 25, 15, 10, 11, 222000).astimezone(berlin_tz),
+                         to_datetime('2022-01-25T14:10:11.222Z', berlin_tz))
 
     def test_convert_from_json(self):
         berlin_tz = pytz.timezone('Europe/Berlin')
